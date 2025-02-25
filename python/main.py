@@ -1,9 +1,4 @@
-import pygame
-from game import Game
-
-def run_game():
-    game = Game()
-    game.run()
+import game_of_life.main
 
 if __name__ == '__main__':
-    run_game()
+    game_of_life.main.main()

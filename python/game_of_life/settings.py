@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from game.types import Color
+from .own_types import Color
 
 @dataclass(frozen=True)
 class Settings:
