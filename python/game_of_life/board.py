@@ -1,13 +1,18 @@
 import random
+import pygame
 from itertools import product
-from .own_types import Grid
+from .own_types import Grid, Color, BoardPresets
+from .constants import ConfigManager
+from . import presets
 
 class Board:
-    def __init__(self, grid_size: tuple[int, int], randomize: bool = False) -> None:
-        self._width: int = grid_size[0];
-        self._height: int = grid_size[1];
+    def __init__(self, randomize: bool = False) -> None:
+        self._config: ConfigManager = ConfigManager()
+        self._width: int = self._config.board_constants.GRID_WIDTH
+        self._height: int = self._config.board_constants.GRID_HEIGHT
+        self._cell_size: int = self._config.board_constants.CELL_SIZE
+        self._life_color: Color = self._config.board_constants.LIFE_COLOR
         self._board: Grid = self._make_board(randomize)
-
 
     def _make_board(self, randomize: bool = False) -> Grid:
         new_board: Grid = [[]]
@@ -49,3 +54,42 @@ class Board:
                 new_board[x][y] = True
         self._board = new_board
         return
+
+    def draw(self, screen: pygame.Surface) -> None:
+        for x, y in product(range(self._width), range(self._height)):
+            coords = ((x+0.5)*self._cell_size, (y+0.5)*self._cell_size)
+            if self._board[x][y]:
+                pygame.draw.circle(screen, self._life_color, coords, self._cell_size/2)
+
+    def load_preset(self, preset: BoardPresets) -> None:
+        if preset == BoardPresets.BLANK:
+            self._board = self._make_board()
+        elif preset == BoardPresets.RANDOM:
+            self._board = self._make_board(randomize=True)
+        elif preset == BoardPresets.GLIDER_GUN:
+            self._board = self._make_board()
+            glider_gun: list[list[int]] = presets.get_glider_gun()
+            for x, y in product(range(len(glider_gun)), range(len(glider_gun[0]))):
+                if glider_gun[x][y] == 1:
+                    self._board[x+10][y+10] = True
+        elif preset == BoardPresets.GLIDER:
+            self._board = self._make_board()
+            glider: list[list[bool]] = presets.get_glider()
+            for x, y in product(range(len(glider)), range(len(glider[0]))):
+                self._board[x+10][y+10] = glider[x][y]
+        elif preset == BoardPresets.BLINKER:
+            self._board = self._make_board()
+            blinker: list[list[bool]] = presets.get_blinker()
+            for x, y in product(range(len(blinker)), range(len(blinker[0]))):
+                self._board[x+10][y+10] = blinker[x][y]
+        elif preset == BoardPresets.BEACON:
+            self._board = self._make_board()
+            beacon: list[list[bool]] = presets.get_beacon()
+            for x, y in product(range(len(beacon)), range(len(beacon[0]))):
+                self._board[x+10][y+10] = beacon[x][y]
+        elif preset == BoardPresets.FUNNY_FACE:
+            self._board = self._make_board()
+            funny_face: str = presets.get_funny_face()
+            for coords in funny_face.split(';'):
+                split_coords = [int(x) for x in coords.split(',')]
+                self._board[split_coords[0]+20][split_coords[1]+20] = True

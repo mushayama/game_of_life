@@ -1,19 +1,22 @@
 import pygame
 import sys
 import time
-from itertools import product
-from .settings import Settings
+from typing import Optional
+from .constants import ConfigManager
 from .board import Board
+from .toolbar import Toolbar
+from .own_types import ButtonAction, BoardPresets
 
 class Game:
     def __init__(self) -> None:
         pygame.init()
-        self.settings: Settings = Settings()
-        self.screen: pygame.Surface = pygame.display.set_mode(self.settings.SCREEN_SIZE)
+        self._config: ConfigManager = ConfigManager()
+        self._screen: pygame.Surface = pygame.display.set_mode(self._config.screen_size)
+        print(self._config.board_constants.GRID_SIZE)
         pygame.display.set_caption("Game Of Life")
 
-        self.board = Board(self.settings.GRID_SIZE, randomize = True)
-
+        self._board: Board = Board(randomize = True)
+        self._toolbar: Toolbar = Toolbar()
 
     def run(self) -> None:
         prev_update_t: float = time.time()
@@ -22,7 +25,7 @@ class Game:
         advance_one_step: bool = False
         while 1:
             '''
-            Mouse and keyboard events
+            Mouse, keyboard and toolbar events
             '''
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
@@ -33,8 +36,9 @@ class Game:
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     x, y = pygame.mouse.get_pos()
-                    col, row = x//self.settings.CELL_SIZE, y//self.settings.CELL_SIZE
-                    self.board.set_cell((col, row), True)
+                    col, row = x//self._config.board_constants.CELL_SIZE, y//self._config.board_constants.CELL_SIZE
+                    if col<self._config.board_constants.GRID_WIDTH and row<self._config.board_constants.GRID_HEIGHT:
+                        self._board.set_cell((col, row), True)
 
                     mouse_dragging = True
 
@@ -42,35 +46,51 @@ class Game:
                     mouse_dragging = False
 
                 if event.type == pygame.QUIT:
+                    pygame.quit()
                     sys.exit()
+
+                toolbar_clicked: tuple[bool, Optional[ButtonAction | BoardPresets]] = self._toolbar.is_clicked(event)
+                if toolbar_clicked[0] and toolbar_clicked[1]:
+                    if toolbar_clicked[1] == ButtonAction.PAUSE:
+                        paused = not paused
+                    elif toolbar_clicked[1] == ButtonAction.STEP:
+                        advance_one_step = True
+                    elif isinstance(toolbar_clicked[1], BoardPresets):
+                        self._board.load_preset(toolbar_clicked[1])
 
             if mouse_dragging:
                 x, y = pygame.mouse.get_pos()
-                col, row = x//self.settings.CELL_SIZE, y//self.settings.CELL_SIZE
-                self.board.set_cell((col, row), True)
+                col, row = x//self._config.board_constants.CELL_SIZE, y//self._config.board_constants.CELL_SIZE
+                if col<self._config.board_constants.GRID_WIDTH and row<self._config.board_constants.GRID_HEIGHT:
+                    self._board.set_cell((col, row), True)
 
             '''
             FPS check
             '''
-            if time.time() - prev_update_t<1/self.settings.FPS:
+            if time.time() - prev_update_t<1/self._config.game_constants.FPS:
                 continue
             prev_update_t = time.time()
 
-            self.screen.fill(self.settings.BACKGROUND_COLOR)
+            '''
+            lay base color
+            '''
+            self._screen.fill(self._config.game_constants.BACKGROUND_COLOR)
 
+            '''
+            update board
+            '''
             if not paused:
-                self.board.advance()
+                self._board.advance()
             elif advance_one_step:
-                self.board.advance()
-                advance_one_step = False
+                self._board.advance()
+            advance_one_step = False
 
             '''
-            canvas update
+            draw board
             '''
-            for x, y in product(range(self.settings.WIDTH), range(self.settings.HEIGHT)):
-                coords = ((x+0.5)*self.settings.CELL_SIZE, (y+0.5)*self.settings.CELL_SIZE)
-                if self.board.get_cell((x, y)):
-                    pygame.draw.circle(self.screen, self.settings.LIFE_COLOR, coords, self.settings.CELL_SIZE/2)
+            self._board.draw(self._screen)
+
+            self._toolbar.draw(self._screen)
 
             pygame.display.flip()
 
